@@ -4,28 +4,481 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic HTML Loading</title>
+  <title>Dictation Exercise</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+      padding: 20px;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      color: #4CAF50;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin: 10px 0 5px;
+    }
+
+    textarea,
+    #highlightBox {
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      resize: none;
+      margin-bottom: 15px;
+      font-size: 16px;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+    #highlightBox {
+      background-color: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    #modelText {
+      display: block;
+      background-color: #e8f5e9;
+      border: 1px solid #4CAF50;
+      color: #1b5e20;
+      font-weight: bold;
+    }
+
+    .button-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    button {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      font-size: 16px;
+      color: #fff;
+      background-color: #4CAF50;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    button:last-child {
+      margin-right: 0;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    button i {
+      margin-right: 8px;
+    }
+
+    #playButton {
+      margin-left: 10px;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #4CAF50;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    #playButton i {
+      color: #fff;
+      margin: 0;
+    }
+
+    #mispronouncedWords {
+      background-color: #fdd;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: auto;
+      padding: 10px 0;
+      font-size: 14px;
+      color: #555;
+      background-color: transparent;
+    }
+
+    .status {
+      font-weight: bold;
+    }
+
+    .status.pass {
+      color: green;
+    }
+
+    .status.fail {
+      color: red;
+    }
+
+    .status.perfect {
+      color: orange;
+    }
+
+    @media (max-width: 600px) {
+
+      textarea,
+      #highlightBox {
+        font-size: 14px;
+      }
+
+      button {
+        font-size: 14px;
+        padding: 8px 16px;
+      }
+
+      button i {
+        margin-right: 5px;
+      }
+    }
+
+    .model-text-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+
+    }
+
+    .highlight-incorrect {
+      background-color: red;
+      color: white;
+    }
+#transcriptionText {
+  display: none;
+}
+    /* Hide initially */
+    #highlightBox,
+    #similarSpellingText,
+    #mispronouncedWords,
+    #correctText {
+      display: none;
+    }
+  </style>
 </head>
 
 <body>
-  <div id="content"></div>
+  <h1>Dictation Exercise</h1>
+  <div class="model-text-container">
+    <label for="modelText">Model Sentence <span id="sentenceId"></span></label>
+
+    <button id="playButton" onclick="playModelText()">
+      <i class="fa fa-play"></i>
+    </button>
+  </div>
+  <textarea id="modelText" rows="2" readonly></textarea>
+
+ <div class="button-container">
+  <button onclick="jumpBackward()" style="margin-right: auto;"><i class="fa fa-fast-backward"></i></button>
+  <button onclick="showPrevious()"><i class="fa fa-arrow-left"></i></button>
+  <button onclick="showNext()"><i class="fa fa-arrow-right"></i></button>
+  <button onclick="jumpForward()" style="margin-left: auto;"><i class="fa fa-fast-forward"></i></button>
+</div>
+  <div class="button-container">
+    <button onclick="startRecording()"><i class="fa fa-microphone"></i> Start Speaking</button>
+    <button onclick="stopRecording()"><i class="fa fa-stop"></i> Stop Speaking</button>
+  </div>
+
+  <label>What You Say:
+    <span id="correctPercentage"></span>
+    <span id="resultBracket"></span>
+  </label>
+  <div id="highlightBox"></div>
+
+  <label for="similarSpellingText">Similar Pronunciation:</label>
+  <textarea id="similarSpellingText" rows="2" readonly></textarea>
+
+  <label for="mispronouncedWords">Mispronounced Words: <span id="mispronouncedCount"></span></label>
+  <textarea id="mispronouncedWords" rows="2" readonly></textarea>
+
+  <textarea id="transcriptionText" rows="2" readonly></textarea>
+  <textarea id="correctText" rows="2" readonly></textarea>
+
   <script>
-    fetch('https://script.google.com/macros/s/AKfycby8X-JXfKwzVFFUZj3uzIn5lJwNnD-FlpVZXRmyXCMrxrG4-Qr_U7R4Wmo7d1NE-9B4/exec')
-      .then(response => response.text())
+    const baseUrl = "https://script.google.com/macros/s/AKfycbxwhM6O_VW-KHSn0iTJKWNYBIv-Qf2_sqdEDQnao3CuZsLZ2OEiG3ZlC3WvthRQNFbEIQ/exec";
+    const para = {
+      spreadsheetId: "1ZUdh7y396J-eiDrQkB81CkzHWalcGMI5bIgthDIdi4s",
+      sheetName: "Sheet1"
+    };
+    const q = new URLSearchParams(para);
+    const url = baseUrl + "?" + q;
+
+    let values = [];
+    let exceptionList = [];
+    let similarSpellingList = {};
+    let currentIndex = 0;
+
+    fetch(url)
+      .then(res => res.json())
       .then(data => {
-        const contentDiv = document.getElementById('content');
-        contentDiv.innerHTML = data;
-        
-        // Re-insert the script tags to ensure they execute
-        const scripts = contentDiv.getElementsByTagName('script');
-        for (let i = 0; i < scripts.length; i++) {
-          const scriptTag = document.createElement('script');
-          scriptTag.text = scripts[i].innerText;
-          document.head.appendChild(scriptTag);
+        values = data.values.slice(1); // Skip the first row (title row)
+        if (values.length > 0) {
+          updateModelText(currentIndex); // Load the currentIndex content immediately
         }
       })
-      .catch(error => console.error('Error loading HTML:', error));
+      .catch(err => console.error('Error fetching data:', err));
+
+    const exceptionListUrl = "https://script.google.com/macros/s/AKfycbyD043wTwjbdF138rBi8xz7vaSYqzV7h9NAK6xGLv5zJJJNUnlt9WrINSP4fpWEOe0y/exec";
+
+    fetch(exceptionListUrl)
+      .then(res => res.json())
+      .then(data => {
+        const values = data.values;
+        exceptionList = values.map(row => row[0]).filter(word => word);
+        values.forEach(row => {
+          if (row[1] && row[2]) {
+            similarSpellingList[row[1]] = row[2];
+          }
+        });
+
+        //console.log('Exception List:', exceptionList);
+        //console.log('Similar Spelling List:', similarSpellingList);
+      })
+      .catch(err => console.error('Error fetching data:', err));
+
+    function updateModelText(index) {
+      if (index >= 0 && index < values.length) {
+        document.getElementById('modelText').value = values[index][1];
+        
+const formattedId = String(values[index][0]).padStart(2, '0'); // Ensure the ID is a two-digit number
+document.getElementById('sentenceId').innerText = formattedId;
+        
+        adjustTextareaHeight(document.getElementById('modelText'));
+      }
+    }
+
+    function showNext() {
+      if (currentIndex < values.length - 1) {
+        currentIndex++;
+        updateModelText(currentIndex);
+      }
+    }
+
+    function showPrevious() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateModelText(currentIndex);
+      }
+    }
+
+        window.playModelText = function() {
+          var modelText = document.getElementById('modelText').value;
+          var utterance = new SpeechSynthesisUtterance(modelText);
+          utterance.voice = speechSynthesis.getVoices().find(voice => voice.name.includes('Female'));
+          utterance.pitch = 1.2;
+          utterance.rate = 1;
+          speechSynthesis.speak(utterance);
+        }
+
+    const recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+
+    window.startRecording = function () {
+      recognition.start();
+    }
+
+    window.stopRecording = function () {
+      recognition.stop();
+    }
+
+    recognition.onresult = function (event) {
+      var transcript = event.results[0][0].transcript.trim();
+      var transcriptionTextElement = document.getElementById('transcriptionText');
+      transcriptionTextElement.value = transcript;
+      adjustTextareaHeight(transcriptionTextElement);
+      compareText();
+    };
+
+    function highlightIncorrectWords(modelText, userText) {
+      const sanitizedModelText = modelText.replace(/(?!\w|\s|\')./g, "").replace(/\s+/g, " ").toLowerCase();
+      const sanitizedUserText = userText.replace(/(?!\w|\s|\')./g, "").replace(/\s+/g, " ").toLowerCase();
+
+      const modelWords = sanitizedModelText.split(" ");
+      const userWords = sanitizedUserText.split(" ");
+
+      let highlightedText = "";
+      userWords.forEach(word => {
+        if (modelWords.includes(word)) {
+          highlightedText += word + " ";
+        } else {
+          highlightedText += `<span class="highlight-incorrect">${word}</span> `;
+        }
+      });
+
+      return highlightedText.trim();
+    }
+
+    function compareText() {
+  var modelText = document.getElementById('modelText').value.trim();
+  var userText = document.getElementById('transcriptionText').value.trim();
+
+  var sanitizedModelText = modelText.replace(/(?!\w|\s|\')./g, "").replace(/\s+/g, " ").toLowerCase();
+  var sanitizedUserText = userText.replace(/(?!\w|\s|\')./g, "").replace(/\s+/g, " ").toLowerCase();
+
+  var modelWords = sanitizedModelText.split(" ");
+  var userWords = sanitizedUserText.split(" ");
+
+  var correctWords = [];
+  var mispronouncedWords = [];
+  var similarSpellingWords = [];
+
+  var userWordsSet = new Set(userWords);
+  var userTextLower = sanitizedUserText;
+
+  var modelWordCount = getWordCount(modelWords);
+  var userWordCount = getWordCount(userWords);
+
+  modelWords.forEach(function (word) {
+    if (userWordsSet.has(word) && modelWordCount[word] === userWordCount[word]) {
+      correctWords.push(word);
+    } else if (!exceptionList.includes(word)) {
+      var similarMatchFound = false;
+      for (var key in similarSpellingList) {
+        if (word === key.toLowerCase()) {
+          var similarWord = similarSpellingList[key];
+          if (userTextLower.includes(similarWord.toLowerCase())) {
+            similarSpellingWords.push(`${similarWord} = ${word}`);
+            similarMatchFound = true;
+            break;
+          }
+        }
+      }
+      if (!similarMatchFound && !mispronouncedWords.includes(word)) {
+        mispronouncedWords.push(word);  // Use word to avoid case-sensitive duplicates
+      }
+    }
+  });
+
+  // New logic for mispronounced words based on word count
+  for (var word in modelWordCount) {
+    if (userWordCount[word] !== modelWordCount[word] && !mispronouncedWords.includes(word)) {
+      mispronouncedWords.push(word);
+    }
+  }
+
+  // Remove similar pronunciation words from mispronounced words
+  similarSpellingWords.forEach(entry => {
+    var originalWord = entry.split(" = ")[1].toLowerCase();
+    mispronouncedWords = mispronouncedWords.filter(word => word.toLowerCase() !== originalWord);
+  });
+
+  document.getElementById('correctText').value = correctWords.join(" ");
+  document.getElementById('mispronouncedWords').value = mispronouncedWords.join(", ");
+  document.getElementById('similarSpellingText').value = similarSpellingWords.join(" ");
+
+  var modelWordsFiltered = modelWords.filter(word => !exceptionList.includes(word));
+  var correctPercentage = Math.round(100 * (correctWords.length + similarSpellingWords.length) / modelWordsFiltered.length);
+  var mispronouncedCount = mispronouncedWords.length + ' / ' + modelWords.length;
+  var resultBracket;
+
+  if (correctPercentage === 100) {
+    resultBracket = '<span class="status perfect">PERFECT!</span>';
+  } else if (correctPercentage >= 88) {
+    resultBracket = '<span class="status pass">PASS</span>';
+  } else {
+    resultBracket = '<span class="status fail">FAIL</span>';
+  }
+
+  document.getElementById('correctPercentage').innerHTML = correctPercentage + '%';
+  document.getElementById('resultBracket').innerHTML = resultBracket;
+  document.getElementById('mispronouncedCount').innerHTML = mispronouncedCount;
+
+  document.getElementById('highlightBox').style.display = userText ? 'block' : 'none';
+  document.getElementById('mispronouncedWords').style.display = mispronouncedWords.length ? 'block' : 'none';
+  document.getElementById('similarSpellingText').style.display = similarSpellingWords.length ? 'block' : 'none';
+
+  // Highlight incorrect words in the highlight box
+  document.getElementById('highlightBox').innerHTML = highlightIncorrectWords(modelText, userText);
+}
+
+    function getWordCount(wordsArray) {
+      return wordsArray.reduce((countMap, word) => {
+        countMap[word] = (countMap[word] || 0) + 1;
+        return countMap;
+      }, {});
+    }
+
+    function adjustTextareaHeight(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+
+    // Hide elements if they are empty on load
+    window.onload = function () {
+      if (!document.getElementById('highlightBox').innerHTML.trim()) {
+        document.getElementById('highlightBox').style.display = 'none';
+      }
+      if (!document.getElementById('similarSpellingText').value.trim()) {
+        document.getElementById('similarSpellingText').style.display = 'none';
+      }
+      if (!document.getElementById('mispronouncedWords').value.trim()) {
+        document.getElementById('mispronouncedWords').style.display = 'none';
+      }
+      if (!document.getElementById('transcriptionText').value.trim()) {
+        document.getElementById('transcriptionText').style.display = 'none';
+      }
+      if (!document.getElementById('correctText').value.trim()) {
+        document.getElementById('correctText').style.display = 'none';
+      }
+    }
+    
+    // Function to speak the selected text
+    function speakText(text) {
+      if (text) {
+        var utterance = new SpeechSynthesisUtterance(text);
+        utterance.voice = speechSynthesis.getVoices().find(voice => voice.name.includes('Female'));
+        utterance.pitch = 1.2;
+        utterance.rate = 0.6;
+        speechSynthesis.speak(utterance);
+      }
+    }
+
+    // Add event listener for highlighting text
+    document.getElementById('modelText').addEventListener('mouseup', function() {
+      var selectedText = window.getSelection().toString().trim();
+      speakText(selectedText);
+    });
+    // fast foward and backward function
+
+ function jumpForward() {
+    currentIndex = Math.min(currentIndex + 10, values.length - 1);
+    updateModelText(currentIndex);
+  }
+
+  function jumpBackward() {
+    currentIndex = Math.max(currentIndex - 10, 0);
+    updateModelText(currentIndex);
+  }
+  
   </script>
+
+  <footer>
+    An intellectual product of Do Thanh Hung
+  </footer>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </body>
 
 </html>

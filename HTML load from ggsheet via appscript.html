@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic HTML Loading</title>
+</head>
+<body>
+  <div id="content"></div>
+  <script>
+    fetch('https://script.google.com/macros/s/AKfycby8X-JXfKwzVFFUZj3uzIn5lJwNnD-FlpVZXRmyXCMrxrG4-Qr_U7R4Wmo7d1NE-9B4/exec')
+      .then(response => response.text())
+      .then(data => {
+        const contentDiv = document.getElementById('content');
+        contentDiv.innerHTML = data;
+        
+        // Re-insert the script tags to ensure they execute
+        const scripts = contentDiv.getElementsByTagName('script');
+        for (let i = 0; i < scripts.length; i++) {
+          const scriptTag = document.createElement('script');
+          scriptTag.text = scripts[i].innerText;
+          document.head.appendChild(scriptTag);
+        }
+      })
+      .catch(error => console.error('Error loading HTML:', error));
+  </script>
+</body>
+</html>

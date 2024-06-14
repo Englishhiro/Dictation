@@ -4,6 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dynamic HTML Loading</title>
+  <style>
+    /* Add these styles to prevent scrollbar */
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* This hides the scrollbar */
+      height: 100%; /* Ensure full height usage */
+    }
+
+    #content {
+      overflow: hidden; /* Prevents the content div from overflowing */
+      height: 100%;
+      width: 100%;
+      box-sizing: border-box; /* Ensures padding and borders are included in width/height */
+    }
+  </style>
 </head>
 <body>
   <div id="content"></div>
